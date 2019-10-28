@@ -27,13 +27,17 @@ def main():
                            help='end time (Default 3600, 1 hour)')
     my_parser.add_argument('--prefix', action='store_true', dest='tripprefix', default='',
                            help='prefix for the trip ids')
+    my_parser.add_arguments('--fringe-factor', action='store', type=float, dest='fringe_factor', default=0.5,
+                            help='seed for the simulation')
+    my_parser.add_arguments('-s', '--seed', action='store', type=int, dest='seed', default=1,
+                            help='seed for the simulation')
     my_parser.add_argument('-p', '--period', action='store', dest='period', default=1,
                            help='Generate vehicles with equidistant departure times and period=FLOAT (default 1.0). ')
                                 # 'If option --binomial is used, the expected arrival rate is set to 1/period.')\
     # Add RRR arguments
     my_parser.add_argument('--prefix', action='store_true', dest='tripprefix', default='',
                            help='prefix for the trip ids')
-    my_parser.add_argument('--truck', action='store', type=float, dest='truck_rate', default=0,
+    my_parser.add_argument('--trk', action='store', type=float, dest='truck_rate', default=0,
                            help='percentage of trucks')
     my_parser.add_argument('--bus', action='store', type=float, dest='bus_rate', default=0,
                            help='percentage of busses')
@@ -41,10 +45,8 @@ def main():
                            help='percentage of motorcycles')
     my_parser.add_argument('--ped', action='store', type=float, dest='ped_rate', default=0,
                            help='percentage of pedestrians')
-    my_parser.add_arguments('-s', '--seed', action='store', type=int, dest='seed', default=1,
-                            help='seed for the simulation')
-    my_parser.add_arguments('--fringe-factor', action='store', type=float, dest='fringe_factor', default=0.5,
-                            help='seed for the simulation')
+
+
 
     args = my_parser.parse_args()
 
