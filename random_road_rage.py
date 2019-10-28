@@ -27,9 +27,9 @@ def main():
                            help='end time (Default 3600, 1 hour)')
     my_parser.add_argument('--prefix', action='store_true', dest='tripprefix', default='',
                            help='prefix for the trip ids')
-    my_parser.add_arguments('--fringe-factor', action='store', type=float, dest='fringe_factor', default=0.5,
+    my_parser.add_argument('--fringe-factor', action='store', type=float, dest='fringe_factor', default=0.5,
                             help='seed for the simulation')
-    my_parser.add_arguments('-s', '--seed', action='store', type=int, dest='seed', default=1,
+    my_parser.add_argument('-s', '--seed', action='store', type=int, dest='seed', default=1,
                             help='seed for the simulation')
     my_parser.add_argument('-p', '--period', action='store', dest='period', default=1,
                            help='Generate vehicles with equidistant departure times and period=FLOAT (default 1.0). ')
