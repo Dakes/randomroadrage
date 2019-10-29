@@ -121,27 +121,23 @@ class RandomRoadRage:
         # first loop through vehicles, to generate a new file for each type
         for vehicle in self.vehicle_types:
             # set vehicle to passenger, if name is car, for compatibility and easier usage
-            vehicle = "passenger" if vehicle == "car" else vehicle
+            v_class = "passenger" if vehicle == "car" else vehicle
             id = "aua_" + vehicle
 
-            # create xml
-            # routes = etree.Element("routes")
-            # routes.append(etree.Element("vType"))
-            # s = etree.tostring(routes, pretty_print=True)doc
-
-            # print(routes)
-
-            routes = "<routes>\n\t<vType id=\"" + id + "\" vClass=\"" + vehicle + "\"/>\n</routes>"
-            print(routes)
-            trips_path = "osm." + vehicle + ".trips.xml"
-            file_path = os.path.join(self.output_path, trips_path)
+            routes = "<routes>\n\t<vType id=\"" + id + "\" vClass=\"" + v_class + "\"/>\n</routes>"
+            # generate blank xml files
+            trips_file_name = "osm." + v_class + ".trips.xml"
+            file_path = os.path.join(self.output_path, trips_file_name)
             file = open(file_path, "w+")
             file.write(routes)
             file.close()
 
+            if not self.vehicle_types[vehicle]:
+                continue
 
             for i in self.intervals:
-                pass
+                print(i)
+                os.system("python randomTrips.py -n")
                 
 
 
