@@ -127,14 +127,17 @@ class RandomRoadRage:
             # create xml
             # routes = etree.Element("routes")
             # routes.append(etree.Element("vType"))
-            # s = etree.tostring(routes, pretty_print=True)
+            # s = etree.tostring(routes, pretty_print=True)doc
+
             # print(routes)
 
             routes = "<routes>\n\t<vType id=\"" + id + "\" vClass=\"" + vehicle + "\"/>\n</routes>"
             print(routes)
-            trips_path = "osm.pedestrian.trips.xml"
-
-            file = open(trips_path)
+            trips_path = "osm." + vehicle + ".trips.xml"
+            file_path = os.path.join(self.output_path, trips_path)
+            file = open(file_path, "w+")
+            file.write(routes)
+            file.close()
 
 
             for i in self.intervals:
