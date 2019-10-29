@@ -44,7 +44,7 @@ class RandomRoadRage:
                                             description="A wrapper for SUMO's randomTrips.py to simulate rush hours")
 
         # Add randomTrips arguments
-        my_parser.add_argument('net_file', metavar='input_path to sumo net file', type=str,
+        my_parser.add_argument('net_file', metavar='input path to sumo net file', type=str,
                                help='define the net file (mandatory)')
         my_parser.add_argument('-b', '--begin', action='store', dest='begin', default=0,
                                help='begin time. (Default 0)')
@@ -66,30 +66,47 @@ class RandomRoadRage:
                                help='percentage of motorcycles')
         my_parser.add_argument('--ped', action='store', type=float, dest='ped_rate', default=0,
                                help='percentage of pedestrians')
+        my_parser.add_argument('--bic', action='store', type=float, dest='bic_rate', default=0,
+                               help='percentage of bicycles')
         my_parser.add_argument('-a', '--amount', action='store', type=int, dest='amount', default=1000,
                                help='Generate <int> vehicles with equidistant departure times during simulation')
 
 
         args = my_parser.parse_args()
-        input_path = args.net_file
+        self.net_file = args.net_file
 
         min_distance = 1000
 
         if args.truck_rate:
             self.vehicle_types["truck"] = args.truck_rate
             self.vehicle_types["car"] -= args.truck_rate
+        else:
+            self.vehicle_types["truck"] = 0
         if args.bus_rate:
             self.vehicle_types["bus"] = args.bus_rate
             self.vehicle_types["car"] -= args.bus_rate
+        else:
+            self.vehicle_types["bus"] = 0
         if args.mc_rate:
-            self.vehicle_types["motorcycles"] = args.mc_rate
+            self.vehicle_types["motorcycle"] = args.mc_rate
             self.vehicle_types["car"] -= args.mc_rate
+        else:
+            self.vehicle_types["motorcycle"] = 0
         if args.ped_rate:
-            self.vehicle_types["pedestrians"] = args.ped_rate
+            self.vehicle_types["pedestrian"] = args.ped_rate
             self.vehicle_types["car"] -= args.ped_rate
+        else:
+            self.vehicle_types["pedestrian"] = 0
+        if args.bic_rate:
+            self.vehicle_types["bicycle"] = args.bic_rate
+            self.vehicle_types["car"] -= args.bic_rate
+        else:
+            self.vehicle_types["bicycle"] = 0
 
         # converting "amount" to randomTrips.py's "period" value
         self.period = (args.end - args.begin) / args.amount
+
+        self.generate()
 
     def generate(self):
         """
@@ -97,19 +114,31 @@ class RandomRoadRage:
         :return:
         """
         self.output_path = os.path.dirname(self.net_file) if not self.output_path else "Readable code is overrated"
+        print(self.output_path)
 
 
 
         # first loop through vehicles, to generate a new file for each type
         for vehicle in self.vehicle_types:
-            vehicle = "passenger" if vehicle == "car" else "its just a car, bro"
+            # set vehicle to passenger, if name is car, for compatibility and easier usage
+            vehicle = "passenger" if vehicle == "car" else vehicle
             id = "aua_" + vehicle
 
             # create xml
-            routes = etree.Element("routes")
+            # routes = etree.Element("routes")
+            # routes.append(etree.Element("vType"))
+            # s = etree.tostring(routes, pretty_print=True)
+            # print(routes)
+
+            routes = "<routes>\n\t<vType id=\"" + id + "\" vClass=\"" + vehicle + "\"/>\n</routes>"
+            print(routes)
+            trips_path = "osm.pedestrian.trips.xml"
+
+            file = open(trips_path)
 
 
             for i in self.intervals:
+                pass
                 
 
 
