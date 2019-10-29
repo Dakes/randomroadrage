@@ -9,16 +9,17 @@
 import argparse
 import os
 import sys
+from lxml import etree
 from colorama import Fore
 
 
 class RandomRoadRage:
 
-    def __init__(self, net_file=None, output_file=None, begin=0, end=86400, fringe=5, seed=None,
+    def __init__(self, net_file=None, output_path=None, begin=0, end=86400, fringe=5, seed=None,
                  vehicle_types=None, amount=1000):
 
         self.net_file = net_file
-        self.output_file = output_file
+        self.output_path = output_path
         self.begin = begin
         self.end = end
         self.fringe = fringe
@@ -45,8 +46,6 @@ class RandomRoadRage:
         # Add randomTrips arguments
         my_parser.add_argument('net_file', metavar='input_path to sumo net file', type=str,
                                help='define the net file (mandatory)')
-        my_parser.add_argument('-o', '--output-trip-file', action='store', dest='tripfile',
-                               help='define the output trip filename. ')
         my_parser.add_argument('-b', '--begin', action='store', dest='begin', default=0,
                                help='begin time. (Default 0)')
         my_parser.add_argument('-e', '--end', action='store', dest='end', default=86400,
@@ -57,6 +56,8 @@ class RandomRoadRage:
                                help='seed for the simulation')
 
         # Add RRR arguments
+        my_parser.add_argument('-o', '--output-path', action='store', dest='output_path',
+                               help='define the output path. ')
         my_parser.add_argument('--trk', action='store', type=float, dest='truck_rate', default=0,
                                help='percentage of trucks')
         my_parser.add_argument('--bus', action='store', type=float, dest='bus_rate', default=0,
@@ -95,17 +96,27 @@ class RandomRoadRage:
 
         :return:
         """
+        self.output_path = os.path.dirname(self.net_file) if not self.output_path else "Readable code is overrated"
+
+
+
         # first loop through vehicles, to generate a new file for each type
         for vehicle in self.vehicle_types:
+            vehicle = "passenger" if vehicle == "car" else "its just a car, bro"
+            id = "aua_" + vehicle
+
+            # create xml
+            routes = etree.Element("routes")
+
 
             for i in self.intervals:
+                
 
 
-
-    def set_parameters(self, net_file=None, output_file=None, begin=0, end=86400, fringe=5, seed=None,
+    def set_parameters(self, net_file=None, output_path=None, begin=0, end=86400, fringe=5, seed=None,
                        vehicle_types=None, amount=1000):
         self.net_file = net_file
-        self.output_file = output_file
+        self.output_path = output_path
         self.begin = begin
         self.end = end
         self.fringe = fringe
