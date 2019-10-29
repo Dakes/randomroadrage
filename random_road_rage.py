@@ -11,13 +11,32 @@ import os
 import sys
 from colorama import Fore
 
-class Random_road_rage:
 
-    def __init__(self):
-        if __name__ == "__main__":
-            pass
-        else:
-            sys.exit(1)
+class RandomRoadRage:
+
+    def __init__(self, net_file=None, output_file=None, begin=0, end=86400, fringe=5, seed=None,
+                 vehicle_types=None, amount=1000):
+
+        self.net_file = net_file
+        self.output_file = output_file
+        self.begin = begin
+        self.end = end
+        self.fringe = fringe
+        self.seed = seed
+        self.vehicle_types = vehicle_types if vehicle_types is not None else {"car": 1}
+        self.amount = amount
+
+        self.period = (end - begin) / amount
+
+        # hardcoded rush hours:
+        # 0-5, 5-9, 9-17, 17-20, 20-0
+        self.intervals = [
+            [0, 18000, 0.063],
+            [18000, 32400, 0.258],
+            [32400, 61200, 0.464],
+            [61200, 72000, 0.138],
+            [72000, 86400, 0.076]
+        ]
 
     def main(self):
         my_parser = argparse.ArgumentParser(prog='Random Road Rage',
@@ -55,25 +74,45 @@ class Random_road_rage:
 
         min_distance = 1000
 
-        vehicle_types = {"car": 1}
         if args.truck_rate:
-            vehicle_types["truck"] = args.truck_rate
-            vehicle_types["car"] -= args.truck_rate
+            self.vehicle_types["truck"] = args.truck_rate
+            self.vehicle_types["car"] -= args.truck_rate
         if args.bus_rate:
-            vehicle_types["bus"] = args.bus_rate
-            vehicle_types["car"] -= args.bus_rate
+            self.vehicle_types["bus"] = args.bus_rate
+            self.vehicle_types["car"] -= args.bus_rate
         if args.mc_rate:
-            vehicle_types["motorcycles"] = args.mc_rate
-            vehicle_types["car"] -= args.mc_rate
+            self.vehicle_types["motorcycles"] = args.mc_rate
+            self.vehicle_types["car"] -= args.mc_rate
         if args.ped_rate:
-            vehicle_types["pedestrians"] = args.ped_rate
-            vehicle_types["car"] -= args.ped_rate
+            self.vehicle_types["pedestrians"] = args.ped_rate
+            self.vehicle_types["car"] -= args.ped_rate
 
         # converting "amount" to randomTrips.py's "period" value
-        period = (args.end - args.begin) / args.amount
+        self.period = (args.end - args.begin) / args.amount
+
+    def generate(self):
+        """
+
+        :return:
+        """
+        # first loop through vehicles, to generate a new file for each type
+        for vehicle in self.vehicle_types:
+
+            for i in self.intervals:
 
 
+
+    def set_parameters(self, net_file=None, output_file=None, begin=0, end=86400, fringe=5, seed=None,
+                       vehicle_types=None, amount=1000):
+        self.net_file = net_file
+        self.output_file = output_file
+        self.begin = begin
+        self.end = end
+        self.fringe = fringe
+        self.seed = seed
+        self.vehicle_types = vehicle_types if vehicle_types is not None else {"car": 1}
+        self.amount = amount
 
 if __name__ == "__main__":
-    x = Random_road_rage
+    x = RandomRoadRage()
     x.main()
