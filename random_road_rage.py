@@ -10,6 +10,7 @@ import argparse
 import os
 import sys
 from xml.dom import minidom
+from random import randint
 from colorama import Fore
 
 
@@ -23,7 +24,7 @@ class RandomRoadRage:
         self.begin = begin
         self.end = end
         self.fringe = fringe
-        self.seed = seed
+        self.seed = randint(0, 999999) if seed is None else seed
         self.vehicle_types = vehicle_types if vehicle_types is not None else {"car": 1}
         self.amount = amount
 
@@ -145,6 +146,9 @@ class RandomRoadRage:
                 print(item)
                 os.system("python randomTrips.py -n %s -o .tmp.xml -b %s -e %s -p %s --fringe-factor %s -s %s --prefix %s" %
                           (self.net_file, item[0], item[1], self.period * item[2], self.fringe, self.seed, (str(idx)+"_") ))
+
+                # After use increment seed, so cars start on different edges
+                self.seed += 1
                 tmp_xml = minidom.parse('.tmp.xml')
                 element_list = tmp_xml.getElementsByTagName("trip")
                 # write trip tags to file
@@ -164,7 +168,7 @@ class RandomRoadRage:
         self.begin = begin
         self.end = end
         self.fringe = fringe
-        self.seed = seed
+        self.seed = randint(0, 999999) if seed is None else seed
         self.vehicle_types = vehicle_types if vehicle_types is not None else {"car": 1}
         self.amount = amount
 
