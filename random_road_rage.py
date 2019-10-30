@@ -9,7 +9,7 @@
 import argparse
 import os
 import sys
-from lxml import etree
+from xml.dom import minidom
 from colorama import Fore
 
 
@@ -105,6 +105,7 @@ class RandomRoadRage:
 
         # converting "amount" to randomTrips.py's "period" value
         self.period = (args.end - args.begin) / args.amount
+        self.seed = args.seed
 
         self.generate()
 
@@ -124,7 +125,7 @@ class RandomRoadRage:
             v_class = "passenger" if vehicle == "car" else vehicle
             id = "aua_" + vehicle
 
-            routes = "<routes>\n\t<vType id=\"" + id + "\" vClass=\"" + v_class + "\"/>\n</routes>"
+            routes = "<routes>\n\t<vType id=\"" + id + "\" vClass=\"" + v_class + "\"/>"
             # generate blank xml files
             trips_file_name = "osm." + v_class + ".trips.xml"
             file_path = os.path.join(self.output_path, trips_file_name)
@@ -133,11 +134,26 @@ class RandomRoadRage:
             file.close()
 
             if not self.vehicle_types[vehicle]:
+                file = open(file_path, "a")
+                file.write("\n</routes>")
+                file.close()
                 continue
 
-            for i in self.intervals:
-                print(i)
-                os.system("python randomTrips.py -n")
+            file = open(file_path, "a")
+            file.write("\n")
+            for idx, item in enumerate(self.intervals):
+                print(item)
+                os.system("python randomTrips.py -n %s -o .tmp.xml -b %s -e %s -p %s --fringe-factor %s -s %s --prefix %s" %
+                          (self.net_file, item[0], item[1], self.period * item[2], self.fringe, self.seed, (str(idx)+"_") ))
+                tmp_xml = minidom.parse('.tmp.xml')
+                element_list = tmp_xml.getElementsByTagName("trip")
+                # write trip tags to file
+                [file.write("\t" + i.toprettyxml(indent='\t', newl='\n', encoding=None)) for i in element_list]
+
+
+            file.write("\n</routes>")
+            file.close()
+
                 
 
 
