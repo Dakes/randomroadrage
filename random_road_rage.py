@@ -103,6 +103,7 @@ class RandomRoadRage:
             self.vehicle_types["bicycle"] = 0
 
         self.seed = args.seed
+        self.amount = args.amount
 
         self.generate()
 
