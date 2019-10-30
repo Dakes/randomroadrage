@@ -142,10 +142,15 @@ class RandomRoadRage:
 
             file = open(file_path, "a")
             file.write("\n")
+
+            vehicle_period = self.period * self.vehicle_types[vehicle]
+            print(self.vehicle_types[vehicle])
+            print(vehicle_period)
+
             for idx, item in enumerate(self.intervals):
                 print(item)
                 os.system("python randomTrips.py -n %s -o .tmp.xml -b %s -e %s -p %s --fringe-factor %s -s %s --prefix %s" %
-                          (self.net_file, item[0], item[1], self.period * item[2], self.fringe, self.seed, (str(idx)+"_") ))
+                          (self.net_file, item[0], item[1], vehicle_period * item[2], self.fringe, self.seed, (str(idx)+"_") ))
 
                 # After use increment seed, so cars start on different edges
                 self.seed += 1
