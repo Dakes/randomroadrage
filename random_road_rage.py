@@ -28,8 +28,6 @@ class RandomRoadRage:
         self.vehicle_types = vehicle_types if vehicle_types is not None else {"car": 1}
         self.amount = amount
 
-        self.period = (end - begin) / amount
-
         # hardcoded rush hours:
         # 0-5, 5-9, 9-17, 17-20, 20-0
         self.intervals = [
@@ -104,8 +102,6 @@ class RandomRoadRage:
         else:
             self.vehicle_types["bicycle"] = 0
 
-        # converting "amount" to randomTrips.py's "period" value
-        self.period = (args.end - args.begin) / args.amount
         self.seed = args.seed
 
         self.generate()
@@ -143,14 +139,13 @@ class RandomRoadRage:
             file = open(file_path, "a")
             file.write("\n")
 
-            vehicle_period = self.period * self.vehicle_types[vehicle]
-            print(self.vehicle_types[vehicle])
-            print(vehicle_period)
+            vehicle_amount = self.amount * self.vehicle_types[vehicle]
 
             for idx, item in enumerate(self.intervals):
-                print(item)
+                period = (self.end - self.begin) / (vehicle_amount * item[2])
+
                 os.system("python randomTrips.py -n %s -o .tmp.xml -b %s -e %s -p %s --fringe-factor %s -s %s --prefix %s" %
-                          (self.net_file, item[0], item[1], vehicle_period * item[2], self.fringe, self.seed, (str(idx)+"_") ))
+                          (self.net_file, item[0], item[1], period, self.fringe, self.seed, (str(idx)+"_") ))
 
                 # After use increment seed, so cars start on different edges
                 self.seed += 1
