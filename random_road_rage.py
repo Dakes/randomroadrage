@@ -70,12 +70,10 @@ class RandomRoadRage:
         my_parser.add_argument('-a', '--amount', action='store', type=int, dest='amount', default=1000,
                                help='Generate <int> vehicles with equidistant departure times during simulation')
 
-
         args = my_parser.parse_args()
         self.net_file = args.net_file
 
-        min_distance = 1000
-
+        # set vehicle rates and reduce car ratio
         if args.truck_rate:
             self.vehicle_types["truck"] = args.truck_rate
             self.vehicle_types["car"] -= args.truck_rate
@@ -109,13 +107,11 @@ class RandomRoadRage:
 
     def generate(self):
         """
-
+        actual function to generate and write the files
         :return:
         """
+        # get output path from net file, if not specified
         self.output_path = os.path.dirname(self.net_file) if not self.output_path else "Readable code is overrated"
-        print(self.output_path)
-
-
 
         # first loop through vehicles, to generate a new file for each type
         for vehicle in self.vehicle_types:
@@ -124,30 +120,34 @@ class RandomRoadRage:
             id = "aua_" + vehicle
 
             routes = "<routes>\n\t<vType id=\"" + id + "\" vClass=\"" + v_class + "\"/>"
-            # generate blank xml files
+            # generate blank xml files, closing xml tag will be writte later
             trips_file_name = "osm." + v_class + ".trips.xml"
             file_path = os.path.join(self.output_path, trips_file_name)
             file = open(file_path, "w+")
             file.write(routes)
             file.close()
 
+            # close xml tag and continue, if no vehicles were specified
             if not self.vehicle_types[vehicle]:
                 file = open(file_path, "a")
                 file.write("\n</routes>")
                 file.close()
                 continue
 
+            # open file again in append mode
             file = open(file_path, "a")
             file.write("\n")
 
+            # calculate each vehicle_amount with the current fraction
             vehicle_amount = self.amount * self.vehicle_types[vehicle]
 
             for idx, item in enumerate(self.intervals):
+                # calculate period with ((end - start) / veh.amount ) but first multiply with rush hours
                 period = (item[1] - item[0]) / (vehicle_amount * item[2])
-                print(period)
 
-                os.system("python randomTrips.py -n %s -o .tmp.xml -b %s -e %s -p %s --fringe-factor %s -s %s --prefix %s" %
-                          (self.net_file, item[0], item[1], period, self.fringe, self.seed, (vehicle[:3] + "_" + str(idx)+"_") ))
+                os.system(
+                    "python randomTrips.py -n %s -o .tmp.xml -b %s -e %s -p %s --fringe-factor %s -s %s --prefix %s" %
+                    (self.net_file, item[0], item[1], period, self.fringe, self.seed, (vehicle[:3]+"_"+str(idx)+"_")))
 
                 # After use increment seed, so cars start on different edges
                 self.seed += 1
@@ -156,12 +156,9 @@ class RandomRoadRage:
                 # write trip tags to file
                 [file.write("\t" + i.toprettyxml(indent='\t', newl='\n', encoding=None)) for i in element_list]
 
-
+            # close xml file with closing tag
             file.write("\n</routes>")
             file.close()
-
-                
-
 
     def set_parameters(self, net_file=None, output_path=None, begin=0, end=86400, fringe=5, seed=None,
                        vehicle_types=None, amount=1000):
@@ -174,6 +171,7 @@ class RandomRoadRage:
         self.vehicle_types = vehicle_types if vehicle_types is not None else {"car": 1}
         self.amount = amount
 
+
 if __name__ == "__main__":
-    x = RandomRoadRage()
-    x.main()
+    rrr = RandomRoadRage()
+    rrr.main()
