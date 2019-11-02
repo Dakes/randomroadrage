@@ -20,7 +20,7 @@ class RandomRoadRage:
                  vehicle_types=None, amount=1000):
 
         self.net_file = net_file
-        self.output_path = output_path
+        self.output_path = os.path.dirname(self.net_file) if not self.output_path else output_path
         self.begin = begin
         self.end = end
         self.fringe = fringe
@@ -73,6 +73,9 @@ class RandomRoadRage:
         args = my_parser.parse_args()
         self.net_file = args.net_file
 
+        # get output path from net file, if not specified
+        self.output_path = os.path.dirname(self.net_file) if not self.output_path else args.output_path
+
         # set vehicle rates and reduce car ratio
         if args.truck_rate:
             self.vehicle_types["truck"] = args.truck_rate
@@ -110,8 +113,6 @@ class RandomRoadRage:
         actual function to generate and write the files
         :return:
         """
-        # get output path from net file, if not specified
-        self.output_path = os.path.dirname(self.net_file) if not self.output_path else "Readable code is overrated"
 
         # first loop through vehicles, to generate a new file for each type
         for vehicle in self.vehicle_types:
