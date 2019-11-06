@@ -172,6 +172,39 @@ class RandomRoadRage:
         self.vehicle_types = vehicle_types if vehicle_types is not None else {"car": 1}
         self.amount = amount
 
+    def adjust_intervals(self) -> list:
+        """
+        needed for intervals smaller than [0; 86,400]
+        :return: a new list of lists containing percentage values relative to the original hardcoded ones for one day
+        """
+        if self.begin == 0 & self.end == 86400:
+            return self.intervals
+        if self.begin >= 86399 | self.end <= 1 | self.begin >= self.end:
+            print("inadequate parameters, try again.")
+            return []
+        new_intervals = []
+
+        # determine first to last relevant interval
+        for I in self.intervals:
+            if I[0] <= self.begin & I[1] > self.begin:
+                temp = [self.begin, I[1], I[2]]
+                new_intervals.append(temp)
+                continue
+            if self.begin < I[0] & I[1] < self.end:
+                new_intervals.append(I)
+                continue
+            if I[0] < self.end & self.end <= I[1]:
+                temp = [I[0], self.end, I[2]]
+                new_intervals.append(temp)
+                break
+
+        # adjusting the demand percentages of the new intervals to interval length and demand of the entire simulation
+        entire_demand = 0
+        for I in new_intervals:
+            entire_demand = entire_demand + ((I[1] - I[0]) * I[2])
+        for I in new_intervals:
+            I[2] = ((I[1] - I[0]) * I[2]) / entire_demand
+
 
 if __name__ == "__main__":
     rrr = RandomRoadRage()
