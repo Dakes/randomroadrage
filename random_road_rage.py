@@ -73,7 +73,7 @@ class RandomRoadRage:
         args = my_parser.parse_args()
         self.net_file = args.net_file
 
-        # get output path from net file, if not specified
+        # get relative output path from net file, if not specified
         self.output_path = os.path.dirname(self.net_file) if not self.output_path else args.output_path
 
         # set vehicle rates and reduce car ratio
