@@ -13,6 +13,8 @@ import sys
 import argparse
 from colorama import Fore
 import xml.etree.ElementTree as ET
+import lxml.etree
+import lxml.builder
 
 
 class Calibrate:
@@ -49,6 +51,7 @@ class Calibrate:
         passenger_trips_path = os.path.join(self.output_path, "osm.passenger.trips.xml")
 
         # get maximum depart time from passenger trips, to get the length of the simulation
+        # TODO: change to lxml to delete one import
         tree = ET.parse(passenger_trips_path)
         root = tree.getroot()
 
@@ -57,7 +60,7 @@ class Calibrate:
             departs.append(float(trip.get('depart')))
         simulation_length = round(max(departs))
 
-        lane_pos = {}
+        edge_pos = {}
         # read from config, if specified: Lane_id whitespace position new line
         if self.id_pos_conf:
             file = open(self.id_pos_conf, "r")
@@ -67,37 +70,57 @@ class Calibrate:
                 # continue if line is empty
                 if not i:
                     continue
-                lane_pos_tmp = i.split()
-                lane_pos[lane_pos_tmp[0]] = lane_pos_tmp[1]
+                edge_pos_tmp = i.split()
+                edge_pos[edge_pos_tmp[0]] = edge_pos_tmp[1]
 
         else:
-            # read lane ids for calibrator and route probe generation from input, the slow way
-            lane_ids = []
+            # read edge ids for calibrator and route probe generation from input, the slow way
+            edge_ids = []
             # random 100 for a sensor cap
             for i in range(100):
-                tmp_input = input("Please input lane id's, one by one or separated by whitespaces possible. \n"
+                tmp_input = input("Please input edge id's, one by one or separated by whitespaces possible. \n"
                                   "If finished Press Enter again to input an empty String. ")
                 # split by default separates whitespaced chars
                 for id in tmp_input.split():
-                    lane_ids.append(id)
+                    edge_ids.append(id)
                 if not tmp_input or tmp_input.isspace():
                     break
 
-            if not lane_ids:
-                print(Fore.RED + "ERROR, no lane ids were input. Exiting")
+            if not edge_ids:
+                print(Fore.RED + "ERROR, no edge ids were input. Exiting")
                 sys.exit(1)
 
-            # next read positions of sensors/calibrators on each lane and write to dictionary
-            for lane_id in lane_ids:
-                pos = input("Please enter the position of the sensor on lane" + lane_id)
+            # next read positions of sensors/calibrators on each edge and write to dictionary
+            for edge_id in edge_ids:
+                pos = input("Please enter the position of the sensor on edge" + edge_id +
+                            ". Enter nothing for default 0")
                 try:
                     pos = float(pos.replace(',', '.'))
                 except ValueError():
-                    print(Fore.RED + "No valid number, exiting")
-                    sys.exit(1)
+                    print(Fore.RED + "No valid number, using 0")
+                    pos = 0
 
-                lane_pos[lane_id] = pos
+                edge_pos[edge_id] = pos
 
+        calibrators_path = os.path.join(self.output_path, "calibrators.xml")
+        E = lxml.builder.ElementMaker()
+
+        the_doc = E.additional
+        (
+            E.vType(id="t0", speedDev="0.1", speedFactor="1.2", sigma="0"),
+            E.routeProbe(id="probe_171130153#1", edge="171130153#1", freq="60", file="routeProbe_output.xml"),
+            E.calibrator
+            (
+                E.flow(begin="0", end="1800", route="cali1_fallback", vehsPerHour="512", speed="27.8", type="t0",
+                       departPos="free", departSpeed="max"),
+                E.flow(begin="1800", end="3600", route="cali1_fallback", vehsPerHour="932", speed="31.2", type="t0",
+                       departPos="free", departSpeed="max"),
+                id='calibtest_edge', edge="171130153#1", pos="15", output="detector.xml"),
+        )
+        et = lxml.etree.ElementTree(the_doc)
+        et.write(calibrators_path, pretty_print=True)
+
+        # TODO remove both flows, replace with insert later, repeat for other stuff
 
 
 
