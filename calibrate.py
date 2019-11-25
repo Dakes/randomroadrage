@@ -11,10 +11,14 @@ Date: 19.11.2019
 import os
 import sys
 import argparse
+import configparser
+from sqlalchemy import create_engine
+import pymysql
 from colorama import Fore
 import xml.etree.ElementTree as ET
 import lxml.etree
 import lxml.builder
+import pandas as pd
 
 
 class Calibrate:
@@ -23,6 +27,14 @@ class Calibrate:
         self.net_file = net_file
         self.id_pos_conf = False
         self.output_path = None
+
+        config = configparser.ConfigParser()
+        config.read("config.cfg")
+
+        # needed for pandas read_sql
+        db_connection_str = "mysql+pymysql://" + config['mysql']['user'] + ":" + config['mysql']['password'] + "@" + \
+                            config['mysql']['host'] + "/" + config['mysql']['database']
+        self.db_connection = create_engine(db_connection_str)
 
     def main(self):
         my_parser = argparse.ArgumentParser(prog='Advanced Urban Calibrator',
@@ -113,12 +125,25 @@ class Calibrate:
             (
                 E.flow(begin="0", end="1800", route="cali1_fallback", vehsPerHour="512", speed="27.8", type="t0",
                        departPos="free", departSpeed="max"),
-                E.flow(begin="1800", end="3600", route="cali1_fallback", vehsPerHour="932", speed="31.2", type="t0",
-                       departPos="free", departSpeed="max"),
+
                 id='calibtest_edge', edge="171130153#1", pos="15", output="detector.xml"),
         )
         et = lxml.etree.ElementTree(the_doc)
         et.write(calibrators_path, pretty_print=True)
+
+        # TODO: count data from database, for the moment assume the start is always at 0:00
+        veh_per_hour = 666
+        speed = 33.33
+
+        # one flow element each hour
+        sim_h = round(simulation_length / 3600)
+        begin = 0
+        end = "3600"
+        for i in range(sim_h):
+            E.flow(begin=begin, end=end, vehsPerHour=veh_per_hour, speed=speed, type="t0",
+                   departPos="free", departSpeed="max")
+            begin = end
+            end = end + 3600
 
         # TODO remove both flows, replace with insert later, repeat for other stuff
 
