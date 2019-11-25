@@ -13,12 +13,12 @@ import sys
 import argparse
 import configparser
 from sqlalchemy import create_engine
-import pymysql
 from colorama import Fore
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as et
 import lxml.etree
 import lxml.builder
 import pandas as pd
+import datetime
 
 
 class Calibrate:
@@ -51,7 +51,7 @@ class Calibrate:
         args = my_parser.parse_args()
         self.net_file = args.net_file
         self.output_path = args.output_path
-        self.id_pos_conf = args.id_pos_conf if os.path.isfile(args.pos_conf) else False
+        self.id_pos_conf = args.id_pos_conf if os.path.isfile(args.id_pos_conf) else False
 
         if not os.path.isfile(self.net_file):
             print(Fore.RED + "ERROR, path to net file is not valid. Exiting")
@@ -64,7 +64,7 @@ class Calibrate:
 
         # get maximum depart time from passenger trips, to get the length of the simulation
         # TODO: change to lxml to delete one import
-        tree = ET.parse(passenger_trips_path)
+        tree = et.parse(passenger_trips_path)
         root = tree.getroot()
 
         departs = []
@@ -91,7 +91,7 @@ class Calibrate:
             # random 100 for a sensor cap
             for i in range(100):
                 tmp_input = input("Please input edge id's, one by one or separated by whitespaces possible. \n"
-                                  "If finished Press Enter again to input an empty String. ")
+                                  "If finished Press Enter again to input an empty String. \n")
                 # split by default separates whitespaced chars
                 for id in tmp_input.split():
                     edge_ids.append(id)
@@ -104,8 +104,8 @@ class Calibrate:
 
             # next read positions of sensors/calibrators on each edge and write to dictionary
             for edge_id in edge_ids:
-                pos = input("Please enter the position of the sensor on edge" + edge_id +
-                            ". Enter nothing for default 0")
+                pos = input("Please enter the position of the sensor on edge \"" + edge_id +
+                            "\" . Enter nothing for default 0: \n")
                 try:
                     pos = float(pos.replace(',', '.'))
                 except ValueError():
@@ -115,40 +115,76 @@ class Calibrate:
                 edge_pos[edge_id] = pos
 
         calibrators_path = os.path.join(self.output_path, "calibrators.xml")
-        E = lxml.builder.ElementMaker()
+        # E = lxml.builder.ElementMaker()
 
-        the_doc = E.additional
-        (
-            E.vType(id="t0", speedDev="0.1", speedFactor="1.2", sigma="0"),
-            E.routeProbe(id="probe_171130153#1", edge="171130153#1", freq="60", file="routeProbe_output.xml"),
-            E.calibrator
-            (
-                E.flow(begin="0", end="1800", route="cali1_fallback", vehsPerHour="512", speed="27.8", type="t0",
-                       departPos="free", departSpeed="max"),
+        root = et.Element('additional')
+        et.SubElement(root, 'vType', id="t0", speedDev="0.1", speedFactor="1.2", sigma="0")
+        # TODO: automate generation
+        et.SubElement(root, 'routeProbe', id="probe_171130153#1", edge="171130153#1", freq="60",
+                      file="routeProbe_output.xml")
 
-                id='calibtest_edge', edge="171130153#1", pos="15", output="detector.xml"),
-        )
-        et = lxml.etree.ElementTree(the_doc)
-        et.write(calibrators_path, pretty_print=True)
+        # TODO: for the moment assume the start is always at 0:00, Data in Database must fit
+        # TODO: count data from database and calculate
 
-        # TODO: count data from database, for the moment assume the start is always at 0:00
-        veh_per_hour = 666
-        speed = 33.33
-
-        # one flow element each hour
+        # one flow element each hour, calculate number of hours
         sim_h = round(simulation_length / 3600)
         begin = 0
-        end = "3600"
-        for i in range(sim_h):
-            E.flow(begin=begin, end=end, vehsPerHour=veh_per_hour, speed=speed, type="t0",
-                   departPos="free", departSpeed="max")
-            begin = end
-            end = end + 3600
+        end = 3600
+
+        # TODO: excuse me WTF, don't load everything at once.
+        df = pd.read_sql('SELECT * FROM entity', con=self.db_connection)
+        df = df.sort_values(by=['time'])
+        start_hour = df['time'][0].hour
+        start_date = df['time'][0].date()
+
+        # these are needed to select all entries of only this one day
+        sql_time_start = datetime.datetime(start_date.year, start_date.month, start_date.day, 0, 0, 0)
+        sql_time_end = datetime.datetime(start_date.year, start_date.month, start_date.day, 23, 59, 59)
+
+        df_day = df.loc[sql_time_start:sql_time_end]
+
+        for edge, position in edge_pos.items():
+            et_cali = et.SubElement(root, "calibrator",
+                                    id="calibtest_edge", edge=edge, pos=position, output="detector.xml")
+
+            for i in range(sim_h):
+
+                df_hour = df.between_time(self._tick_to_time(begin), self._tick_to_time(end))
+
+                speed = df_hour["speed"].mean()
+                veh_per_hour = len(df_hour.index)
+
+                et.SubElement(et_cali, "flow", begin=begin, end=end, vehsPerHour=veh_per_hour, speed="27.8", type="t0",
+                              departPos="free", departSpeed="max")
+
+
+
+                # if df is empty database has no data for this hour, just skip
+                if df_hour.empty:
+                    continue
+
+
+                begin = end
+                end = end + 3600
+
+
+                # TODO: insert into the_doc
 
         # TODO remove both flows, replace with insert later, repeat for other stuff
 
+        et.write(calibrators_path, pretty_print=True)
 
-
+    def _tick_to_time(self, tick, tick_length=1, sim_start_hour=0) -> datetime.time:
+        """
+        converts a sumo tick to a time object
+        :param tick: tick to be converted
+        :param tick_length:  tick length in seconds, default: 1 second
+        :param sim_start_hour: start of the sumo simulation, to use as start point for the time, default: 0
+        :return datetime.time:
+        """
+        tick = tick * tick_length
+        # weird conversion of timedelta to time
+        return (datetime.datetime.min + datetime.timedelta(hours=sim_start_hour, seconds=tick)).time()
 
 if __name__ == "__main__":
     c = Calibrate()
