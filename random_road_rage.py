@@ -20,7 +20,7 @@ class RandomRoadRage:
                  vehicle_types=None, amount=1000):
 
         self.net_file = net_file
-        self.output_path = os.path.dirname(self.net_file) if not self.output_path else output_path
+        self.output_path = os.path.dirname(self.net_file) if not "output_path" in locals() else output_path
         self.begin = begin
         self.end = end
         self.fringe = fringe
@@ -73,7 +73,7 @@ class RandomRoadRage:
         args = my_parser.parse_args()
         self.net_file = args.net_file
 
-        # get output path from net file, if not specified
+        # get relative output path from net file, if not specified
         self.output_path = os.path.dirname(self.net_file) if not self.output_path else args.output_path
 
         # set vehicle rates and reduce car ratio
