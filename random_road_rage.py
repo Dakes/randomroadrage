@@ -20,7 +20,7 @@ class RandomRoadRage:
                  vehicle_types=None, amount=1000):
 
         self.net_file = net_file
-        self.output_path = os.path.dirname(self.net_file) if not self.output_path else output_path
+        self.output_path = os.path.dirname(self.net_file) if not "output_path" in locals() else output_path
         self.begin = begin
         self.end = end
         self.fringe = fringe
