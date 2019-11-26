@@ -14,15 +14,16 @@ import argparse
 import configparser
 from sqlalchemy import create_engine
 from colorama import Fore
-import xml.etree.ElementTree as et
+from lxml import etree as et
+# import xml.etree.ElementTree as et
 import pandas as pd
 import datetime
 
 
 class Calibrate:
 
-    def __init__(self, net_file=None):
-        self.net_file = net_file
+    def __init__(self, sumocfg=None):
+        self.sumocfg = sumocfg
         self.id_pos_conf = False
         self.output_path = None
 
@@ -42,25 +43,25 @@ class Calibrate:
                                             description="A program to automatically create calibrators for "
                                                         "SUMO simulations with traffic data from a database")
 
-        my_parser.add_argument('net_file', metavar='input path to sumo net file', type=str,
+        my_parser.add_argument('sumocfg', metavar='input path to sumocfg file', type=str,
                                help='define the net file (mandatory)')
         my_parser.add_argument('-o', '--output-path', action='store', dest='output_path', default=None,
                                help='define the output path. ')
         my_parser.add_argument('-c', '--id_pos_conf', action='store', dest='id_pos_conf', default=False,
-                               help='define the output path. ')
+                               help='The configuration file to quickly define edges with fitting position and sensor_id')
 
         args = my_parser.parse_args()
-        self.net_file = args.net_file
+        self.sumocfg = args.sumocfg
         self.output_path = args.output_path
         self.id_pos_conf = args.id_pos_conf if os.path.isfile(args.id_pos_conf) else False
 
-        if not os.path.isfile(self.net_file):
+        if not os.path.isfile(self.sumocfg):
             print(Fore.RED + "ERROR, path to net file is not valid. Exiting")
             sys.exit(1)
 
         # read file
         # get output path from net file, if not specified
-        self.output_path = os.path.dirname(self.net_file) if not self.output_path else args.output_path
+        self.output_path = os.path.dirname(self.sumocfg) if not self.output_path else args.output_path
         passenger_trips_path = os.path.join(self.output_path, "osm.passenger.trips.xml")
 
         # get maximum depart time from passenger trips, to get the length of the simulation
@@ -71,9 +72,11 @@ class Calibrate:
         for trip in root.findall('trip'):
             departs.append(float(trip.get('depart')))
         simulation_length = round(max(departs))
+        print("Length of simulation:", simulation_length)
 
         edge_pos = {}
         edge_sensor = {}
+        edge_ids = []
         # read from config, if specified: Lane_id whitespace position new line
         if self.id_pos_conf:
             file = open(self.id_pos_conf, "r")
@@ -86,11 +89,10 @@ class Calibrate:
                 edge_pos_sens_tmp = i.split()
                 edge_pos[edge_pos_sens_tmp[0]] = edge_pos_sens_tmp[1]
                 edge_sensor[edge_pos_sens_tmp[0]] = edge_pos_sens_tmp[2]
+                edge_ids.append(edge_pos_sens_tmp[0])
 
         else:
             # read edge ids for calibrator and route probe generation from input, the slow way
-            edge_ids = []
-
             while True:
                 tmp_input = input("Please input edge id's, one by one or separated by whitespaces possible. \n"
                                   "If finished Press Enter again to input an empty String: \n")
@@ -122,20 +124,21 @@ class Calibrate:
                                   "If finished Press Enter again to input an empty String: \n")
                 edge_sensor[edge] = int(tmp_input)
 
-        calibrators_path = os.path.join(self.output_path, "calibrators.xml")
+        calibrators_path = os.path.join(self.output_path, "calibrator.xml")
         # E = lxml.builder.ElementMaker()
 
         root = et.Element('additional')
         et.SubElement(root, 'vType', id="t0", speedDev="0.1", speedFactor="1.2", sigma="0")
         # TODO: automate generation
-        et.SubElement(root, 'routeProbe', id="probe_171130153#1", edge="171130153#1", freq="60",
-                      file="routeProbe_output.xml")
+        for edge in edge_ids:
+            et.SubElement(root, 'routeProbe', id="probe_" + edge, edge=edge, freq="60", file="routeProbe_output.xml")
 
         # TODO: for the moment assume the start is always at 0:00, Data in Database must fit
         # TODO: count data from database and calculate
 
         # one flow element each hour, calculate number of hours
         sim_h = round(simulation_length / 3600)
+        print(sim_h, "hour(s) simulated")
 
         # TODO: excuse me WTF, don't load everything at once.
         # read only min date for start values, pandas is not really required, but convenient
@@ -159,33 +162,35 @@ class Calibrate:
 
                 db_fetch_start = db_data_start + self._tick_to_timedelta(begin)
                 db_fetch_end = db_data_start + self._tick_to_timedelta(end)
-                # TODO: add sensor id
-                df = pd.read_sql("SELECT * FROM entity WHERE time BETWEEN {} AND {} AND sensor_id = {}"
-                                 .format(db_data_start.strftime("%Y-%m-%d %H:%M:%S"),
+                # print(db_fetch_start, db_fetch_end)
+                df = pd.read_sql("SELECT * FROM entity WHERE time BETWEEN \"{}\" AND \"{}\" AND sensor_id = {}"
+                                 .format(db_fetch_start.strftime("%Y-%m-%d %H:%M:%S"),
                                          db_fetch_end.strftime("%Y-%m-%d %H:%M:%S"), sensor_id), con=self.db_connection)
-
-                # df_hour = df.between_time(self._tick_to_time(begin), self._tick_to_time(end))
 
                 # if df is empty database has no data for this hour, just skip
                 if df.empty:
+                    begin = end
+                    end = end + self.step_size
                     continue
 
                 speed = df["speed"].mean()
                 veh_per_hour = len(df.index)
 
-                et.SubElement(et_cali, "flow", begin=begin, end=end, vehsPerHour=veh_per_hour, speed=speed, type="t0",
-                              departPos="free", departSpeed="max")
-
-
+                et.SubElement(et_cali, "flow", begin=str(begin), end=str(end), vehsPerHour=str(veh_per_hour),
+                              speed=str(speed), type="t0", departPos="free", departSpeed="max")
 
                 begin = end
                 end = end + self.step_size
 
 
-                # TODO: insert into the_doc
+        # TODO: insert into the_doc
 
 
-        et.write(calibrators_path, pretty_print=True)
+        # et.write(calibrators_path, pretty_print=True)
+        print(et.tostring(root, pretty_print=True).decode("utf-8"))
+        calibrator = et.ElementTree(root)
+        calibrator.write(calibrators_path, pretty_print=True)
+
 
     def _tick_to_timedelta(self, tick, tick_length=1, sim_start_hour=0) -> datetime.timedelta:
         """
