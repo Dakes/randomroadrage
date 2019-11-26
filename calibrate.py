@@ -15,8 +15,6 @@ import configparser
 from sqlalchemy import create_engine
 from colorama import Fore
 import xml.etree.ElementTree as et
-# import lxml.etree
-# import lxml.builder
 import pandas as pd
 import datetime
 
@@ -66,7 +64,6 @@ class Calibrate:
         passenger_trips_path = os.path.join(self.output_path, "osm.passenger.trips.xml")
 
         # get maximum depart time from passenger trips, to get the length of the simulation
-        # TODO: change to lxml to delete one import
         tree = et.parse(passenger_trips_path)
         root = tree.getroot()
 
@@ -76,6 +73,7 @@ class Calibrate:
         simulation_length = round(max(departs))
 
         edge_pos = {}
+        edge_sensor = {}
         # read from config, if specified: Lane_id whitespace position new line
         if self.id_pos_conf:
             file = open(self.id_pos_conf, "r")
@@ -85,14 +83,15 @@ class Calibrate:
                 # continue if line is empty
                 if not i:
                     continue
-                edge_pos_tmp = i.split()
-                edge_pos[edge_pos_tmp[0]] = edge_pos_tmp[1]
+                edge_pos_sens_tmp = i.split()
+                edge_pos[edge_pos_sens_tmp[0]] = edge_pos_sens_tmp[1]
+                edge_sensor[edge_pos_sens_tmp[0]] = edge_pos_sens_tmp[2]
 
         else:
             # read edge ids for calibrator and route probe generation from input, the slow way
             edge_ids = []
-            # random 100 for a sensor cap
-            for i in range(100):
+
+            while True:
                 tmp_input = input("Please input edge id's, one by one or separated by whitespaces possible. \n"
                                   "If finished Press Enter again to input an empty String: \n")
                 # split by default separates whitespaced chars
@@ -106,8 +105,8 @@ class Calibrate:
                 sys.exit(1)
 
             # next read positions of sensors/calibrators on each edge and write to dictionary
-            for edge_id in edge_ids:
-                pos = input("Please enter the position of the sensor on edge \"" + edge_id +
+            for edge in edge_ids:
+                pos = input("Please enter the position of the sensor on edge \"" + edge +
                             "\" . Enter nothing for default 0: \n")
                 try:
                     pos = float(pos.replace(',', '.'))
@@ -115,7 +114,13 @@ class Calibrate:
                     print(Fore.RED + "No valid number, using 0")
                     pos = 0
 
-                edge_pos[edge_id] = pos
+                edge_pos[edge] = pos
+
+            # loop for the edge id and sensor id matching
+            for edge in edge_ids:
+                tmp_input = input("Please input the fitting sensor id in the database for the edge:" + edge + ". \n"
+                                  "If finished Press Enter again to input an empty String: \n")
+                edge_sensor[edge] = int(tmp_input)
 
         calibrators_path = os.path.join(self.output_path, "calibrators.xml")
         # E = lxml.builder.ElementMaker()
@@ -148,14 +153,16 @@ class Calibrate:
                                     id="calibtest_edge", edge=edge, pos=position, output="detector.xml")
             begin = 0
             end = self.step_size
+
+            sensor_id = edge_sensor[edge]
             for i in range(sim_h):
 
                 db_fetch_start = db_data_start + self._tick_to_timedelta(begin)
                 db_fetch_end = db_data_start + self._tick_to_timedelta(end)
                 # TODO: add sensor id
-                df = pd.read_sql("SELECT * FROM entity WHERE OrderDate BETWEEN {} AND {}"
+                df = pd.read_sql("SELECT * FROM entity WHERE time BETWEEN {} AND {} AND sensor_id = {}"
                                  .format(db_data_start.strftime("%Y-%m-%d %H:%M:%S"),
-                                         db_fetch_end.strftime("%Y-%m-%d %H:%M:%S")), con=self.db_connection)
+                                         db_fetch_end.strftime("%Y-%m-%d %H:%M:%S"), sensor_id), con=self.db_connection)
 
                 # df_hour = df.between_time(self._tick_to_time(begin), self._tick_to_time(end))
 
