@@ -15,8 +15,8 @@ import configparser
 from sqlalchemy import create_engine
 from colorama import Fore
 import xml.etree.ElementTree as et
-import lxml.etree
-import lxml.builder
+# import lxml.etree
+# import lxml.builder
 import pandas as pd
 import datetime
 
@@ -27,6 +27,9 @@ class Calibrate:
         self.net_file = net_file
         self.id_pos_conf = False
         self.output_path = None
+
+        # step sizes to generate in seconds
+        self.step_size = 3600
 
         config = configparser.ConfigParser()
         config.read("config.cfg")
@@ -91,7 +94,7 @@ class Calibrate:
             # random 100 for a sensor cap
             for i in range(100):
                 tmp_input = input("Please input edge id's, one by one or separated by whitespaces possible. \n"
-                                  "If finished Press Enter again to input an empty String. \n")
+                                  "If finished Press Enter again to input an empty String: \n")
                 # split by default separates whitespaced chars
                 for id in tmp_input.split():
                     edge_ids.append(id)
@@ -128,63 +131,66 @@ class Calibrate:
 
         # one flow element each hour, calculate number of hours
         sim_h = round(simulation_length / 3600)
-        begin = 0
-        end = 3600
 
         # TODO: excuse me WTF, don't load everything at once.
-        df = pd.read_sql('SELECT * FROM entity', con=self.db_connection)
-        df = df.sort_values(by=['time'])
-        start_hour = df['time'][0].hour
-        start_date = df['time'][0].date()
+        # read only min date for start values, pandas is not really required, but convenient
+        df = pd.read_sql('SELECT MIN(time) FROM entity', con=self.db_connection)
+        df = df["MIN(time)"][0]
+        start_hour = df.hour
+        start_date = df.date()
 
         # these are needed to select all entries of only this one day
-        sql_time_start = datetime.datetime(start_date.year, start_date.month, start_date.day, 0, 0, 0)
-        sql_time_end = datetime.datetime(start_date.year, start_date.month, start_date.day, 23, 59, 59)
-
-        df_day = df.loc[sql_time_start:sql_time_end]
+        db_data_start = datetime.datetime(start_date.year, start_date.month, start_date.day, 0, 0, 0)
+        # sql_time_end = datetime.datetime(start_date.year, start_date.month, start_date.day, 23, 59, 59)
 
         for edge, position in edge_pos.items():
             et_cali = et.SubElement(root, "calibrator",
                                     id="calibtest_edge", edge=edge, pos=position, output="detector.xml")
-
+            begin = 0
+            end = self.step_size
             for i in range(sim_h):
 
-                df_hour = df.between_time(self._tick_to_time(begin), self._tick_to_time(end))
+                db_fetch_start = db_data_start + self._tick_to_timedelta(begin)
+                db_fetch_end = db_data_start + self._tick_to_timedelta(end)
+                # TODO: add sensor id
+                df = pd.read_sql("SELECT * FROM entity WHERE OrderDate BETWEEN {} AND {}"
+                                 .format(db_data_start.strftime("%Y-%m-%d %H:%M:%S"),
+                                         db_fetch_end.strftime("%Y-%m-%d %H:%M:%S")), con=self.db_connection)
 
-                speed = df_hour["speed"].mean()
-                veh_per_hour = len(df_hour.index)
+                # df_hour = df.between_time(self._tick_to_time(begin), self._tick_to_time(end))
 
-                et.SubElement(et_cali, "flow", begin=begin, end=end, vehsPerHour=veh_per_hour, speed="27.8", type="t0",
+                # if df is empty database has no data for this hour, just skip
+                if df.empty:
+                    continue
+
+                speed = df["speed"].mean()
+                veh_per_hour = len(df.index)
+
+                et.SubElement(et_cali, "flow", begin=begin, end=end, vehsPerHour=veh_per_hour, speed=speed, type="t0",
                               departPos="free", departSpeed="max")
 
 
 
-                # if df is empty database has no data for this hour, just skip
-                if df_hour.empty:
-                    continue
-
-
                 begin = end
-                end = end + 3600
+                end = end + self.step_size
 
 
                 # TODO: insert into the_doc
 
-        # TODO remove both flows, replace with insert later, repeat for other stuff
 
         et.write(calibrators_path, pretty_print=True)
 
-    def _tick_to_time(self, tick, tick_length=1, sim_start_hour=0) -> datetime.time:
+    def _tick_to_timedelta(self, tick, tick_length=1, sim_start_hour=0) -> datetime.timedelta:
         """
-        converts a sumo tick to a time object
+        converts a sumo tick to a timedelta object
         :param tick: tick to be converted
         :param tick_length:  tick length in seconds, default: 1 second
         :param sim_start_hour: start of the sumo simulation, to use as start point for the time, default: 0
-        :return datetime.time:
+        :return datetime.timedelta:
         """
         tick = tick * tick_length
         # weird conversion of timedelta to time
-        return (datetime.datetime.min + datetime.timedelta(hours=sim_start_hour, seconds=tick)).time()
+        return datetime.timedelta(hours=sim_start_hour, seconds=tick)
 
 if __name__ == "__main__":
     c = Calibrate()
