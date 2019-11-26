@@ -125,16 +125,13 @@ class Calibrate:
                 edge_sensor[edge] = int(tmp_input)
 
         calibrators_path = os.path.join(self.output_path, "calibrator.xml")
-        # E = lxml.builder.ElementMaker()
 
         root = et.Element('additional')
         et.SubElement(root, 'vType', id="t0", speedDev="0.1", speedFactor="1.2", sigma="0")
-        # TODO: automate generation
         for edge in edge_ids:
             et.SubElement(root, 'routeProbe', id="probe_" + edge, edge=edge, freq="60", file="routeProbe_output.xml")
 
         # TODO: for the moment assume the start is always at 0:00, Data in Database must fit
-        # TODO: count data from database and calculate
 
         # one flow element each hour, calculate number of hours
         sim_h = round(simulation_length / 3600)
@@ -144,12 +141,10 @@ class Calibrate:
         # read only min date for start values, pandas is not really required, but convenient
         df = pd.read_sql('SELECT MIN(time) FROM entity', con=self.db_connection)
         df = df["MIN(time)"][0]
-        start_hour = df.hour
+        # start_hour = df.hour
         start_date = df.date()
 
-        # these are needed to select all entries of only this one day
         db_data_start = datetime.datetime(start_date.year, start_date.month, start_date.day, 0, 0, 0)
-        # sql_time_end = datetime.datetime(start_date.year, start_date.month, start_date.day, 23, 59, 59)
 
         for edge, position in edge_pos.items():
             et_cali = et.SubElement(root, "calibrator",
@@ -182,15 +177,25 @@ class Calibrate:
                 begin = end
                 end = end + self.step_size
 
-
-        # TODO: insert into the_doc
-
-
-        # et.write(calibrators_path, pretty_print=True)
-        print(et.tostring(root, pretty_print=True).decode("utf-8"))
         calibrator = et.ElementTree(root)
         calibrator.write(calibrators_path, pretty_print=True)
 
+        # add calibrator.xml to osm.sumocfg
+
+        tree = et.parse(self.sumocfg)
+        root = tree.getroot()
+
+        for i, tag in enumerate(root):
+            if tag.tag == "input":
+                for j, tag in enumerate(root[i]):
+                    if tag.tag == "additional-files":
+                        val = root[i][j].get("value")
+                        if "calibrator.xml" in val:
+                            break
+                        else:
+                            root[i][j].set("value", val + ",calibrator.xml")
+        calibrator = et.ElementTree(root)
+        calibrator.write(self.sumocfg, pretty_print=True)
 
     def _tick_to_timedelta(self, tick, tick_length=1, sim_start_hour=0) -> datetime.timedelta:
         """
