@@ -147,8 +147,8 @@ class Calibrate:
         db_data_start = datetime.datetime(start_date.year, start_date.month, start_date.day, 0, 0, 0)
 
         for edge, position in edge_pos.items():
-            et_cali = et.SubElement(root, "calibrator",
-                                    id="calibtest_edge", edge=edge, pos=position, output="detector.xml")
+            et_cali = et.SubElement(root, "calibrator", id="calib_"+edge, edge=edge, pos=position,
+                                    output="detector.xml", routeProbe="probe_"+edge)
             begin = 0
             end = self.step_size
 
