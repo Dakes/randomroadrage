@@ -106,6 +106,11 @@ class RandomRoadRage:
         self.seed = args.seed
         self.amount = args.amount
 
+        self.begin = int(args.begin)
+        self.end = int(args.end)
+
+        self.adjust_intervals()
+
         self.generate()
 
     def generate(self):
@@ -177,6 +182,9 @@ class RandomRoadRage:
         needed for intervals smaller than [0; 86,400]
         :return: a new list of lists containing percentage values relative to the original hardcoded ones for one day
         """
+        print("in adjust intervals")
+        print(self.begin, self.end)
+
         if self.begin == 0 and self.end == 86400:
             return self.intervals
         if self.begin >= 86399 or self.end <= 1 or self.begin >= self.end:
@@ -185,25 +193,29 @@ class RandomRoadRage:
         new_intervals = []
 
         # determine first to last relevant interval
-        for I in self.intervals:
-            if I[0] <= self.begin and I[1] > self.begin:
-                temp = [self.begin, I[1], I[2]]
+        # interval: [begin, end, percentage]
+        for interval in self.intervals:
+            print(new_intervals)
+            if interval[0] <= self.begin < interval[1]:
+                temp = [self.begin, interval[1], interval[2]]
                 new_intervals.append(temp)
-                continue
-            if self.begin < I[0] and I[1] < self.end:
-                new_intervals.append(I)
-                continue
-            if I[0] < self.end and self.end <= I[1]:
-                temp = [I[0], self.end, I[2]]
+            elif self.begin < interval[0] and interval[1] < self.end:
+                new_intervals.append(interval)
+            elif interval[0] < self.end <= interval[1]:
+                temp = [interval[0], self.end, interval[2]]
                 new_intervals.append(temp)
+                print("breaking")
                 break
 
         # adjusting the demand percentages of the new intervals to interval length and demand of the entire simulation
         entire_demand = 0
-        for I in new_intervals:
-            entire_demand = entire_demand + ((I[1] - I[0]) * I[2])
-        for I in new_intervals:
-            I[2] = ((I[1] - I[0]) * I[2]) / entire_demand
+        for interval in new_intervals:
+            entire_demand = entire_demand + ((interval[1] - interval[0]) * interval[2])
+        for interval in new_intervals:
+            interval[2] = ((interval[1] - interval[0]) * interval[2]) / entire_demand
+        print("new intervals: \n", new_intervals)
+        print(entire_demand)
+
 
 
 if __name__ == "__main__":
