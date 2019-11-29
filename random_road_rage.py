@@ -135,9 +135,8 @@ class RandomRoadRage:
 
             # close xml tag and continue, if no vehicles were specified
             if not self.vehicle_types[vehicle]:
-                file = open(file_path, "a")
-                file.write("\n</routes>")
-                file.close()
+                with open(file_path, "a") as file:
+                    file.write("\n</routes>")
                 continue
 
             # open file again in append mode
@@ -182,7 +181,6 @@ class RandomRoadRage:
         needed for intervals smaller than [0; 86,400]
         :return: a new list of lists containing percentage values relative to the original hardcoded ones for one day
         """
-        print("in adjust intervals")
         print(self.begin, self.end)
 
         if self.begin == 0 and self.end == 86400:
