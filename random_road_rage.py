@@ -123,7 +123,9 @@ class RandomRoadRage:
         for vehicle in self.vehicle_types:
             # set vehicle to passenger, if name is car, for compatibility and easier usage
             v_class = "passenger" if vehicle == "car" else vehicle
-            id = "aua_" + vehicle
+            # TODO: fix different id's
+            id = vehicle
+            # id = "aua_" + vehicle
 
             routes = "<routes>\n\t<vType id=\"" + id + "\" vClass=\"" + v_class + "\"/>"
             # generate blank xml files, closing xml tag will be writte later
@@ -151,13 +153,19 @@ class RandomRoadRage:
                 period = (item[1] - item[0]) / (vehicle_amount * item[2])
 
                 os.system(
-                    "python randomTrips.py -n %s -o .tmp.xml -b %s -e %s -p %s --fringe-factor %s -s %s --prefix %s" %
-                    (self.net_file, item[0], item[1], period, self.fringe, self.seed, (vehicle[:3]+"_"+str(idx)+"_")))
+                    "python randomTrips.py -n %s -o .tmp.xml -b %s -e %s -p %s --fringe-factor %s -s %s --prefix %s --vehicle-class %s" %
+                    (self.net_file, item[0], item[1], period, self.fringe, self.seed, (vehicle[:3]+"_"+str(idx)+"_"), v_class))
 
                 # After use increment seed, so cars start on different edges
                 self.seed += 1
                 tmp_xml = minidom.parse('.tmp.xml')
+
+                # TODO: ugly quick fix, make it properly
+                element_list = tmp_xml.getElementsByTagName("vType")
+                [file.write("\t" + i.toprettyxml(indent='\t', newl='\n', encoding=None)) for i in element_list]
+
                 element_list = tmp_xml.getElementsByTagName("trip")
+
                 # write trip tags to file
                 [file.write("\t" + i.toprettyxml(indent='\t', newl='\n', encoding=None)) for i in element_list]
 
@@ -181,8 +189,6 @@ class RandomRoadRage:
         needed for intervals smaller than [0; 86,400]
         :return: a new list of lists containing percentage values relative to the original hardcoded ones for one day
         """
-        print(self.begin, self.end)
-
         if self.begin == 0 and self.end == 86400:
             return self.intervals
         if self.begin >= 86399 or self.end <= 1 or self.begin >= self.end:
@@ -193,7 +199,7 @@ class RandomRoadRage:
         # determine first to last relevant interval
         # interval: [begin, end, percentage]
         for interval in self.intervals:
-            print(new_intervals)
+            # print(new_intervals)
             if interval[0] <= self.begin < interval[1]:
                 temp = [self.begin, interval[1], interval[2]]
                 new_intervals.append(temp)
@@ -202,7 +208,7 @@ class RandomRoadRage:
             elif interval[0] < self.end <= interval[1]:
                 temp = [interval[0], self.end, interval[2]]
                 new_intervals.append(temp)
-                print("breaking")
+                # print("breaking")
                 break
 
         # adjusting the demand percentages of the new intervals to interval length and demand of the entire simulation
@@ -211,10 +217,8 @@ class RandomRoadRage:
             entire_demand = entire_demand + ((interval[1] - interval[0]) * interval[2])
         for interval in new_intervals:
             interval[2] = ((interval[1] - interval[0]) * interval[2]) / entire_demand
-        print("new intervals: \n", new_intervals)
-        print(entire_demand)
 
-
+        # print(entire_demand)
 
 if __name__ == "__main__":
     rrr = RandomRoadRage()
