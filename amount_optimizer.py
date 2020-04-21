@@ -87,7 +87,7 @@ class AmountOptimizer:
             cursor.close()
 
             # call random_road_rage
-            print("Calling rrr ...")
+            print("Calling rrr with new amount of %s..." % new_amount)
             os.system("python random_road_rage.py /home/daniel/Sumo/sumo/tools/Dachau2/Dachau/osm.net.xml --fringe-factor %s --trk 0.01 --bus 0.005 --mc 0.1 --bic 0.01 -a %s" % (new_ffactor, new_amount))
             print("rrr finished successfully.")
 
@@ -130,8 +130,8 @@ class AmountOptimizer:
             cursor.execute(query)
             tmp = cursor.fetchone()[0]
             amounts.append(tmp)
-            self.con.commit()
-            cursor.close()
+        self.con.commit()
+        cursor.close()
         return amounts
 
 
