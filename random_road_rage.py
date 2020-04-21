@@ -128,7 +128,7 @@ class RandomRoadRage:
             # id = "aua_" + vehicle
 
             routes = "<routes>\n\t<vType id=\"" + id + "\" vClass=\"" + v_class + "\"/>"
-            # generate blank xml files, closing xml tag will be writte later
+            # generate blank xml files, closing xml tag will be written later
             trips_file_name = "osm." + v_class + ".trips.xml"
             file_path = os.path.join(self.output_path, trips_file_name)
             file = open(file_path, "w+")
