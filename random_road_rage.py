@@ -28,14 +28,26 @@ class RandomRoadRage:
         self.vehicle_types = vehicle_types if vehicle_types is not None else {"car": 1}
         self.amount = amount
 
-        # hardcoded rush hours:
+        # TODO: generalize rush hours / create designated config file and selection
+        # hardcoded Kirchheim rush hours:
+        # 0-5, 5-9, 9-17, 17-20, 20-0
+        # self.intervals = [
+        #     [0, 18000, 0.063],
+        #     [18000, 32400, 0.258],
+        #     [32400, 61200, 0.464],
+        #     [61200, 72000, 0.138],
+        #     [72000, 86400, 0.076]
+        # ]
+
+        # hardcoded Dachau rush hours:
         # 0-5, 5-9, 9-17, 17-20, 20-0
         self.intervals = [
-            [0, 18000, 0.063],
-            [18000, 32400, 0.258],
-            [32400, 61200, 0.464],
-            [61200, 72000, 0.138],
-            [72000, 86400, 0.076]
+            [0, 3600, 0.013741390813606496],
+            [3600, 18000, 0.028648541187222026],
+            [18000, 25200, 0.0750832425185819],
+            [25200, 68400, 0.7117055790962658],
+            [68400, 75600, 0.0879492728054316],
+            [75600, 86400, 0.08287197357889226]
         ]
 
     def main(self):

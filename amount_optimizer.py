@@ -19,9 +19,10 @@ class AmountOptimizer:
 
     def __init__(self):
         # TODO: make pretty + make db_connection to server, not to localhosts
-        config_path = "/home/daniel/PycharmProjects/randomroadrage/config.cfg"
 
         config = configparser.ConfigParser()
+        gen_root_dir = os.path.dirname(os.path.realpath(__file__))
+        config_path = os.path.join(gen_root_dir, "config.cfg")
         config.read(config_path)
 
         try:
@@ -48,11 +49,11 @@ class AmountOptimizer:
         new_amount = amount
         # the following param is not really used, it is an idea to improve this script in the future
         new_ffactor = ffactor
-        last_change = int (amount / 2)
+        last_change = int(amount / 2)
 
         real_amounts = self.get_sensor_amounts(num_sensors, dbname_real_sensors)
         print("Real amounts are: ", real_amounts)
-        while(True):
+        while True:
 
             simulated_amounts = self.get_sensor_amounts(num_sensors, dbname_sim_sensors)
             print("Simulated amounts currently are: ", simulated_amounts)
@@ -71,11 +72,11 @@ class AmountOptimizer:
                 break
             if diff < 0:
                 if last_change < 0:
-                    last_change = int (np.absolute(last_change) / 2)
+                    last_change = int(np.absolute(last_change) / 2)
                 new_amount += last_change
             if diff > 0:
                 if last_change > 0:
-                    last_change = int ((- last_change) / 2)
+                    last_change = int((- last_change) / 2)
                 new_amount += last_change
 
             # clear old simulation
@@ -105,7 +106,7 @@ class AmountOptimizer:
 
     def calculate_differences(self, real_amounts, simulated_amounts):
         """
-        Purpousfully not with absolute differences, so that program knows whether amount is too big or too small
+        Purposefully not with absolute differences, so that program knows whether amount is too big or too small
         Negative results suggest amount is too little and should be higher next iteration
         :arg
         """
