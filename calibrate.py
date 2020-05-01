@@ -26,6 +26,7 @@ class Calibrate:
         self.sumocfg = sumocfg
         self.id_pos_conf = False
         self.output_path = None
+        self.start_date = None
 
         # step sizes to generate in seconds
         self.step_size = 3600
@@ -49,11 +50,16 @@ class Calibrate:
                                help='define the output path. ')
         my_parser.add_argument('-c', '--id_pos_conf', action='store', dest='id_pos_conf', default=False,
                                help='The configuration file to quickly define edges with fitting position and sensor_id')
+        my_parser.add_argument('-s', '--start_date', action='store', dest='start_date', default=False,
+                               help='Override for the start date for the data base fetches. '
+                                    'That way you can pick a specific date instead of using the default first in the db'
+                                    'It needs to be given in the form YYYY-mm-dd')
 
         args = my_parser.parse_args()
         self.sumocfg = args.sumocfg
         self.output_path = args.output_path
         self.id_pos_conf = args.id_pos_conf if os.path.isfile(args.id_pos_conf) else False
+        self.start_date = args.start_date if self.check_date(args.start_date) else None
 
         if not os.path.isfile(self.sumocfg):
             print(Fore.RED + "ERROR, path to net file is not valid. Exiting")
@@ -137,14 +143,17 @@ class Calibrate:
         sim_h = round(simulation_length / 3600)
         print(sim_h, "hour(s) simulated")
 
-        # TODO: excuse me WTF, don't load everything at once.
         # read only min date for start values, pandas is not really required, but convenient
         df = pd.read_sql('SELECT MIN(time) FROM entity', con=self.db_connection)
         df = df["MIN(time)"][0]
         # start_hour = df.hour
         start_date = df.date()
 
-        db_data_start = datetime.datetime(start_date.year, start_date.month, start_date.day, 0, 0, 0)
+        # get the start date for the db fetch. By default the first date in db.
+        if not self.start_date:
+            db_data_start = datetime.datetime(start_date.year, start_date.month, start_date.day, 0, 0, 0)
+        else:
+            db_data_start = datetime.datetime.strptime(self.start_date, '%Y-%m-%d')
 
         for edge, position in edge_pos.items():
             et_cali = et.SubElement(root, "calibrator", id="calib_"+edge, edge=edge, pos=position,
@@ -157,18 +166,20 @@ class Calibrate:
 
                 db_fetch_start = db_data_start + self._tick_to_timedelta(begin)
                 db_fetch_end = db_data_start + self._tick_to_timedelta(end)
-                # print(db_fetch_start, db_fetch_end)
-                df = pd.read_sql("SELECT * FROM entity WHERE time BETWEEN \"{}\" AND \"{}\" AND sensor_id = {}"
-                                 .format(db_fetch_start.strftime("%Y-%m-%d %H:%M:%S"),
-                                         db_fetch_end.strftime("%Y-%m-%d %H:%M:%S"), sensor_id), con=self.db_connection)
+
+                sql_select = "SELECT * FROM entity WHERE time BETWEEN \"{}\" AND \"{}\" AND sensor_id = {}"\
+                    .format(db_fetch_start.strftime("%Y-%m-%d %H:%M:%S"),
+                            db_fetch_end.strftime("%Y-%m-%d %H:%M:%S"), sensor_id)
+                df = pd.read_sql(sql_select, con=self.db_connection)
 
                 # if df is empty database has no data for this hour, just skip
+                # TODO: change so that calibrator has 0 cars
                 if df.empty:
                     begin = end
                     end = end + self.step_size
                     continue
 
-                speed = df["speed"].mean()
+                speed = df["mean_velocity"].mean()
                 veh_per_hour = len(df.index)
 
                 et.SubElement(et_cali, "flow", begin=str(begin), end=str(end), vehsPerHour=str(veh_per_hour),
@@ -208,6 +219,16 @@ class Calibrate:
         tick = tick * tick_length
         # weird conversion of timedelta to time
         return datetime.timedelta(hours=sim_start_hour, seconds=tick)
+
+    """
+    Function to check dates for the format YYY-mm-dd
+    """
+    def check_date(self, date_text):
+        try:
+            datetime.datetime.strptime(date_text, '%Y-%m-%d')
+        except ValueError:
+            raise ValueError("Incorrect data format, should be YYYY-MM-DD")
+        return date_text
 
 if __name__ == "__main__":
     c = Calibrate()
