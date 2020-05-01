@@ -88,7 +88,10 @@ class Calibrate:
             file = open(self.id_pos_conf, "r")
             contents = file.read()
             contents = contents.split("\n")
-            for i in contents:
+            for idx, i in enumerate(contents):
+                # skip first naming row
+                if idx == 0 and "sensor_id" in i:
+                    continue
                 # continue if line is empty
                 if not i:
                     continue
