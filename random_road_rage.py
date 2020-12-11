@@ -28,14 +28,26 @@ class RandomRoadRage:
         self.vehicle_types = vehicle_types if vehicle_types is not None else {"car": 1}
         self.amount = amount
 
-        # hardcoded rush hours:
+        # TODO: generalize rush hours / create designated config file and selection
+        # hardcoded K. rush hours:
+        # 0-5, 5-9, 9-17, 17-20, 20-0
+        # self.intervals = [
+        #     [0, 18000, 0.063],
+        #     [18000, 32400, 0.258],
+        #     [32400, 61200, 0.464],
+        #     [61200, 72000, 0.138],
+        #     [72000, 86400, 0.076]
+        # ]
+
+        # hardcoded D. rush hours:
         # 0-5, 5-9, 9-17, 17-20, 20-0
         self.intervals = [
-            [0, 18000, 0.063],
-            [18000, 32400, 0.258],
-            [32400, 61200, 0.464],
-            [61200, 72000, 0.138],
-            [72000, 86400, 0.076]
+            [0, 3600, 0.013741390813606496],
+            [3600, 18000, 0.028648541187222026],
+            [18000, 25200, 0.0750832425185819],
+            [25200, 68400, 0.7117055790962658],
+            [68400, 75600, 0.0879492728054316],
+            [75600, 86400, 0.08287197357889226]
         ]
 
     def main(self):
@@ -106,6 +118,11 @@ class RandomRoadRage:
         self.seed = args.seed
         self.amount = args.amount
 
+        self.begin = int(args.begin)
+        self.end = int(args.end)
+
+        self.adjust_intervals()
+
         self.generate()
 
     def generate(self):
@@ -118,10 +135,12 @@ class RandomRoadRage:
         for vehicle in self.vehicle_types:
             # set vehicle to passenger, if name is car, for compatibility and easier usage
             v_class = "passenger" if vehicle == "car" else vehicle
-            id = "aua_" + vehicle
+            # TODO: fix different id's
+            id = vehicle
+            # id = "aua_" + vehicle
 
             routes = "<routes>\n\t<vType id=\"" + id + "\" vClass=\"" + v_class + "\"/>"
-            # generate blank xml files, closing xml tag will be writte later
+            # generate blank xml files, closing xml tag will be written later
             trips_file_name = "osm." + v_class + ".trips.xml"
             file_path = os.path.join(self.output_path, trips_file_name)
             file = open(file_path, "w+")
@@ -130,9 +149,8 @@ class RandomRoadRage:
 
             # close xml tag and continue, if no vehicles were specified
             if not self.vehicle_types[vehicle]:
-                file = open(file_path, "a")
-                file.write("\n</routes>")
-                file.close()
+                with open(file_path, "a") as file:
+                    file.write("\n</routes>")
                 continue
 
             # open file again in append mode
@@ -147,13 +165,19 @@ class RandomRoadRage:
                 period = (item[1] - item[0]) / (vehicle_amount * item[2])
 
                 os.system(
-                    "python randomTrips.py -n %s -o .tmp.xml -b %s -e %s -p %s --fringe-factor %s -s %s --prefix %s" %
-                    (self.net_file, item[0], item[1], period, self.fringe, self.seed, (vehicle[:3]+"_"+str(idx)+"_")))
+                    "python randomTrips.py -n %s -o .tmp.xml -b %s -e %s -p %s --fringe-factor %s -s %s --prefix %s --vehicle-class %s" %
+                    (self.net_file, item[0], item[1], period, self.fringe, self.seed, (vehicle[:3]+"_"+str(idx)+"_"), v_class))
 
                 # After use increment seed, so cars start on different edges
                 self.seed += 1
                 tmp_xml = minidom.parse('.tmp.xml')
+
+                # TODO: ugly quick fix, make it properly
+                element_list = tmp_xml.getElementsByTagName("vType")
+                [file.write("\t" + i.toprettyxml(indent='\t', newl='\n', encoding=None)) for i in element_list]
+
                 element_list = tmp_xml.getElementsByTagName("trip")
+
                 # write trip tags to file
                 [file.write("\t" + i.toprettyxml(indent='\t', newl='\n', encoding=None)) for i in element_list]
 
@@ -177,34 +201,36 @@ class RandomRoadRage:
         needed for intervals smaller than [0; 86,400]
         :return: a new list of lists containing percentage values relative to the original hardcoded ones for one day
         """
-        if self.begin == 0 & self.end == 86400:
+        if self.begin == 0 and self.end == 86400:
             return self.intervals
-        if self.begin >= 86399 | self.end <= 1 | self.begin >= self.end:
+        if self.begin >= 86399 or self.end <= 1 or self.begin >= self.end:
             print("inadequate parameters, try again.")
             return []
         new_intervals = []
 
         # determine first to last relevant interval
-        for I in self.intervals:
-            if I[0] <= self.begin & I[1] > self.begin:
-                temp = [self.begin, I[1], I[2]]
+        # interval: [begin, end, percentage]
+        for interval in self.intervals:
+            # print(new_intervals)
+            if interval[0] <= self.begin < interval[1]:
+                temp = [self.begin, interval[1], interval[2]]
                 new_intervals.append(temp)
-                continue
-            if self.begin < I[0] & I[1] < self.end:
-                new_intervals.append(I)
-                continue
-            if I[0] < self.end & self.end <= I[1]:
-                temp = [I[0], self.end, I[2]]
+            elif self.begin < interval[0] and interval[1] < self.end:
+                new_intervals.append(interval)
+            elif interval[0] < self.end <= interval[1]:
+                temp = [interval[0], self.end, interval[2]]
                 new_intervals.append(temp)
+                # print("breaking")
                 break
 
         # adjusting the demand percentages of the new intervals to interval length and demand of the entire simulation
         entire_demand = 0
-        for I in new_intervals:
-            entire_demand = entire_demand + ((I[1] - I[0]) * I[2])
-        for I in new_intervals:
-            I[2] = ((I[1] - I[0]) * I[2]) / entire_demand
+        for interval in new_intervals:
+            entire_demand = entire_demand + ((interval[1] - interval[0]) * interval[2])
+        for interval in new_intervals:
+            interval[2] = ((interval[1] - interval[0]) * interval[2]) / entire_demand
 
+        # print(entire_demand)
 
 if __name__ == "__main__":
     rrr = RandomRoadRage()
